@@ -141,7 +141,96 @@ $('calc').onclick=()=>{
  $('recommendations').innerHTML=acts.join('');
  $('results').classList.remove('hide');$('results').scrollIntoView({behavior:'smooth'});
 };
+
+async function savePDFOnIPhone(){
+ const button=$('pdf');
+ if(typeof html2pdf!=='function'){
+  alert('Не удалось загрузить библиотеку PDF. Проверьте интернет и повторите.');
+  return;
+ }
+ const original=button.textContent;
+ let stage=null;
+ button.disabled=true;
+ button.textContent='Подготавливаем PDF…';
+ try{
+  const report=$('results').cloneNode(true);
+  report.classList.remove('hide');
+  report.removeAttribute('id');
+  report.querySelectorAll('.downloadarea,.noprint,button').forEach(el=>el.remove());
+  report.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+  stage=document.createElement('div');
+  stage.className='iphone-pdf-stage';
+  stage.style.cssText='position:absolute;left:0;top:100%;width:760px;background:#fff;color:#172536;z-index:-1;pointer-events:none;';
+  const style=document.createElement('style');
+  style.textContent=`
+  .iphone-pdf-stage{font-family:Arial,sans-serif;font-size:12px;line-height:1.35}
+  .iphone-pdf-stage *{box-sizing:border-box}
+  .iphone-pdf-stage h2{font-size:19px;margin:0 0 7px}
+  .iphone-pdf-stage h3{font-size:15px;margin:12px 0 6px}
+  .iphone-pdf-stage h4{font-size:13px;margin:0 0 6px}
+  .iphone-pdf-stage p{margin:5px 0;overflow-wrap:anywhere}
+  .iphone-pdf-stage .step{font-size:10px;color:#496786;font-weight:700}
+  .iphone-pdf-stage .metriccards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:8px 0 12px}
+  .iphone-pdf-stage .metriccard{min-width:0;border:1px solid #cad5e2;border-radius:5px;padding:10px;background:#fff}
+  .iphone-pdf-stage .metricnumbers{display:block}
+  .iphone-pdf-stage .metricnumbers>div{margin:5px 0}
+  .iphone-pdf-stage .metricnumbers span{font-size:11px}
+  .iphone-pdf-stage .metricnumbers strong{display:block;font-size:16px}
+  .iphone-pdf-stage .delta{font-size:11px;font-weight:700;margin-top:6px}
+  .iphone-pdf-stage .flag{display:inline-block;border:1px solid #a9b8c7;border-radius:5px;padding:2px 6px;font-size:10px;font-weight:700}
+  .iphone-pdf-stage .recommendation{border:1px solid #d9e2eb;border-radius:4px;padding:9px 12px;margin:9px 0;background:#fff}
+  .iphone-pdf-stage .notice{padding:9px;border:1px solid #cbd9e8;margin:8px 0}
+  .iphone-pdf-stage .closing{font-size:14px;font-weight:700;margin:12px 0}
+  .iphone-pdf-stage .downloadarea{display:none}
+  `;
+  stage.appendChild(style);
+  const body=document.createElement('div');
+  body.style.cssText='padding:12px 14px;background:#fff';
+  body.innerHTML=report.innerHTML;
+  stage.appendChild(body);
+  document.body.appendChild(stage);
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  const options={
+   margin:[8,9,8,9],
+   filename:'Налоговый_рентген_2027_заключение.pdf',
+   image:{type:'jpeg',quality:0.96},
+   html2canvas:{scale:1.5,useCORS:true,backgroundColor:'#ffffff',scrollX:0,scrollY:0},
+   jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+   pagebreak:{mode:['css','legacy']}
+  };
+  const blob=await html2pdf().set(options).from(body).outputPdf('blob');
+  if(!blob || blob.size<1000)throw new Error('Не удалось создать PDF-файл.');
+  const file=new File([blob],options.filename,{type:'application/pdf'});
+  // iPhone Safari: делимся именно PDF-файлом, а не URL калькулятора.
+  if(navigator.canShare && navigator.canShare({files:[file]}) && navigator.share){
+   try{
+    await navigator.share({files:[file],title:'Налоговый рентген — заключение'});
+    return;
+   }catch(e){
+    if(e.name==='AbortError')return;
+    // Если отправка не поддержана приложением, предложим скачать файл.
+   }
+  }
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('a');
+  link.href=url;link.download=options.filename;
+  document.body.appendChild(link);link.click();link.remove();
+  // Не освобождаем URL сразу: iOS может обрабатывать загрузку с задержкой.
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+  alert('PDF сформирован. Если iPhone не предложил сохранить файл, откройте калькулятор в Safari и повторите.');
+ }catch(e){
+  alert('Не удалось сохранить PDF на iPhone: '+(e.message||e)+'. Откройте калькулятор в Safari и попробуйте снова.');
+ }finally{
+  stage?.remove();
+  button.disabled=false;
+  button.textContent=original;
+ }
+}
 $('pdf').onclick=()=>{
+ if(/iPhone|iPad|iPod/i.test(navigator.userAgent)){
+  savePDFOnIPhone();
+  return;
+ }
  const source=$('results');
  if(source.classList.contains('hide')){
    alert('Сначала нажмите «Показать мой налоговый рентген», чтобы сформировать заключение.');
