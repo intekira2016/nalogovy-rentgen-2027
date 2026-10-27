@@ -156,8 +156,9 @@ $('pdf').onclick=async()=>{
   report.querySelectorAll('.metriccards').forEach(el=>el.style.gridTemplateColumns='1fr');
   report.querySelectorAll('.recommendation').forEach(el=>el.style.breakInside='avoid');
   const holder=document.createElement('div');
-  holder.style.cssText='position:fixed;left:-10000px;top:0;width:760px;background:white;z-index:-1';
+  holder.style.cssText='position:absolute;left:0;top:0;width:760px;background:white;z-index:99999;opacity:1;pointer-events:none';
   holder.appendChild(report);document.body.appendChild(holder);
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   try{
    await html2pdf().set({margin:9,filename:'Налоговый_рентген_2027_заключение.pdf',
     image:{type:'jpeg',quality:.96},html2canvas:{scale:1.5,useCORS:true,backgroundColor:'#ffffff',windowWidth:800},
