@@ -142,29 +142,72 @@ $('calc').onclick=()=>{
  $('results').classList.remove('hide');$('results').scrollIntoView({behavior:'smooth'});
 };
 $('pdf').onclick=()=>{
- const report=$('results').cloneNode(true);
+ const source=$('results');
+ if(source.classList.contains('hide')){
+   alert('Сначала нажмите «Показать мой налоговый рентген», чтобы сформировать заключение.');
+   return;
+ }
+ // Изолированный документ: стили калькулятора и правила печати в него НЕ копируются.
+ const report=source.cloneNode(true);
  report.classList.remove('hide');
- report.querySelector('.downloadarea')?.remove();
+ report.removeAttribute('id');
+ report.querySelectorAll('.downloadarea,.noprint,button').forEach(el=>el.remove());
  report.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
- const css=Array.from(document.querySelectorAll('style')).map(x=>x.textContent).join('\\n');
  const popup=window.open('','_blank');
- if(!popup){alert('Браузер заблокировал окно заключения. Разрешите всплывающие окна для этого сайта и повторите.');return;}
+ if(!popup){
+   alert('Разрешите всплывающие окна для сайта и нажмите кнопку PDF ещё раз.');
+   return;
+ }
+ const cleanCSS=`
+ @page{size:A4 portrait;margin:11mm 12mm}
+ *,*::before,*::after{box-sizing:border-box}
+ html,body{position:static!important;transform:none!important;overflow:visible!important;
+ width:auto!important;height:auto!important;margin:0!important;padding:0!important;
+ background:white!important;color:#172536!important}
+ body{font-family:Arial,"Segoe UI",sans-serif;font-size:9.5pt;line-height:1.32}
+ main,section,div{max-height:none;overflow:visible;transform:none}
+ main{max-width:186mm;margin:0 auto}
+ h2{font-size:14pt;margin:0 0 5pt;break-after:avoid;page-break-after:avoid}
+ h3{font-size:11pt;margin:9pt 0 4pt;break-after:avoid;page-break-after:avoid}
+ h4{font-size:10pt;margin:0 0 4pt;break-after:avoid;page-break-after:avoid}
+ p{margin:4pt 0;overflow-wrap:anywhere;orphans:2;widows:2}
+ .step{font-size:8pt;font-weight:bold;color:#496786;margin-bottom:3pt}
+ .metriccards{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6pt;margin:5pt 0 8pt}
+ .metriccard{display:block;min-width:0;border:1px solid #cad5e2;padding:7pt;margin:0;
+ border-radius:4pt;break-inside:auto;page-break-inside:auto}
+ .metriccard h4{font-size:9pt}
+ .metricnumbers{display:block}
+ .metricnumbers>div{margin:4pt 0}
+ .metricnumbers span{font-size:8pt}
+ .metricnumbers strong{display:block;font-size:11pt;overflow-wrap:anywhere}
+ .delta{margin-top:5pt;font-size:8pt;font-weight:bold}
+ .flag{display:inline-block;padding:1pt 5pt;border:1px solid #a9b8c7;border-radius:6pt;
+ font-size:8pt;font-weight:bold;margin:2pt 0 4pt}
+ .recommendation{display:block;border:1px solid #d9e2eb;padding:7pt 9pt;margin:7pt 0;
+ break-inside:auto!important;page-break-inside:auto!important;border-radius:3pt}
+ .recommendation p{break-inside:auto!important;page-break-inside:auto!important}
+ .notice{padding:7pt;border:1px solid #cbd9e8;margin:6pt 0}
+ .closing{font-weight:bold;font-size:10pt;margin-top:9pt}
+ .downloadarea,.noprint,.printbar{display:none!important}
+ @media screen{
+ body{padding:16px!important;background:#f1f4f8!important}
+ main{background:#fff;padding:20px;box-shadow:0 2px 15px #0002}
+ .printbar{display:block!important;position:sticky;bottom:0;text-align:center;
+ background:#e8f1fb;padding:12px;margin-top:12px}
+ .printbar button{font-size:16px;padding:12px 18px;background:#1761ad;color:white;
+ border:0;border-radius:8px;cursor:pointer}
+ }
+ @media print{.printbar{display:none!important}main{margin:0;padding:0;box-shadow:none}}
+ `;
  popup.document.open();
- popup.document.write(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Налоговый рентген — заключение</title><style>${css}
- body{background:white!important;color:#182434!important}
- .wrap{max-width:780px!important;padding:10px!important}
- .card{box-shadow:none!important;border:0!important;padding:10px!important}
- .metriccards{display:block!important}.metriccard{margin-bottom:14px!important}
- .recommendation{break-inside:avoid;page-break-inside:avoid}
- .noprint,.downloadarea{display:none!important}
- @page{size:A4;margin:13mm}
- </style></head><body><main class="wrap">${report.outerHTML}</main>
- <div class="printbar" style="position:fixed;bottom:0;left:0;right:0;background:#eaf1f9;padding:12px;text-align:center;font:16px Arial">
- <button onclick="window.print()" style="padding:12px 20px;font-size:17px;cursor:pointer">Сохранить заключение как PDF / Печать</button>
- <span style="margin-left:12px">В окне печати выберите «Сохранить как PDF»</span></div>
- <style>@media print{.printbar{display:none!important}body{padding-bottom:0!important}}@media screen{body{padding-bottom:90px}}</style>
- </body></html>`);
+ popup.document.write('<!doctype html><html lang="ru"><head><meta charset="utf-8">'+
+   '<meta name="viewport" content="width=device-width,initial-scale=1">'+
+   '<title>Налоговый рентген бизнеса — заключение</title><style>'+cleanCSS+'</style></head>'+
+   '<body><main>'+report.innerHTML+'</main>'+
+   '<div class="printbar"><button type="button" onclick="window.print()">Сохранить заключение как PDF</button>'+
+   '<p>В окне печати выберите «Сохранить как PDF».</p></div></body></html>');
  popup.document.close();
+ popup.focus();
 };
 $('upload').onchange=async e=>{
  const file=e.target.files?.[0];if(!file)return;
